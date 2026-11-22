@@ -1,0 +1,11 @@
+name: diag2
+on: [push, workflow_dispatch]
+jobs:
+  m14:
+    runs-on: macos-14
+    steps:
+      - run: sw_vers; echo m14-ok
+  m13:
+    runs-on: macos-13
+    steps:
+      - run: sw_vers; echo m13-ok
