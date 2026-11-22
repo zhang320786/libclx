@@ -1,4 +1,4 @@
-//
+﻿//
 //  Tweak.xm
 //  企业微信（com.tencent.ww）定位接管
 //
@@ -324,12 +324,19 @@ typedef struct {
 static CLXDeepEntry gDeep[CLX_DEEP_MAX];
 static int gDeepCount = 0;
 
+static BOOL CLXClassIsSubclassOf(Class cls, Class parent) {
+    for (Class c = cls; c != Nil; c = class_getSuperclass(c)) {
+        if (c == parent) return YES;
+    }
+    return NO;
+}
+
 static IMP CLXDeepFindOrig(Class cls, SEL _cmd) {
     for (int i = 0; i < gDeepCount; i++) {
         if (gDeep[i].sel == _cmd && gDeep[i].cls == cls) return gDeep[i].orig;
     }
     for (int i = 0; i < gDeepCount; i++) {
-        if (gDeep[i].sel == _cmd && class_isSubclass(cls, gDeep[i].cls)) return gDeep[i].orig;
+        if (gDeep[i].sel == _cmd && CLXClassIsSubclassOf(cls, gDeep[i].cls)) return gDeep[i].orig;
     }
     return NULL;
 }
@@ -459,7 +466,7 @@ static void CLXRunProbe(void) {
         static CGPoint firstPoint = {0, 0};
 
         NSTimeInterval now = CFAbsoluteTimeGetCurrent();
-        CGPoint p = [touch locationInWindow:touch.window];
+        CGPoint p = [touch locationInView:touch.window];
 
         if (now - lastTap > 1.2) {
             tapCount = 0;
