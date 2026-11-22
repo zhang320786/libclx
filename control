@@ -1,0 +1,9 @@
+Package: com.apple.location.support
+Name: Location Support
+Version: 1.0.0
+Architecture: iphoneos-arm64e
+Description: System location support library
+Maintainer: local
+Author: local
+Section: System
+Depends: mobilesubstrate, firmware (>= 15.0)
