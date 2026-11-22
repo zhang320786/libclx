@@ -446,42 +446,59 @@ static void CLXRunProbe(void) {
     }
 }
 
-#pragma mark - 隐藏入口（连续点击 5 次）
+#pragma mark - 隐藏入口
 
-// 用 UIApplication 而不是 UIWindow：App 自己可能重写 UIWindow 子类的 sendEvent:，
-// 而 UIApplication 的事件入口几乎不会被业务代码覆盖。
-// 进入方式：任意界面 1.2 秒内连点 5 次，且点位基本不移动。
+// 入口一：任意界面 3 秒内连点 5 次（点位相差 220pt 内）
+// 入口二：摇一摇
+//
+// 关键：检测必须放在 %orig 之前。
+// -[UIApplication sendEvent:] 返回后，UIKit 会回收 UIEvent 的触摸集合，
+// 之后 event.allTouches 基本是空的 —— 这是上一版连点进不去设置页的根因。
+
+static void CLXRegisterTap(CGPoint p) {
+    static NSInteger tapCount = 0;
+    static NSTimeInterval lastTap = 0;
+    static CGPoint firstPoint = {0, 0};
+
+    NSTimeInterval now = CFAbsoluteTimeGetCurrent();
+
+    if (tapCount == 0 || (now - lastTap) > 3.0) {
+        tapCount = 1;
+        firstPoint = p;
+    } else {
+        tapCount++;
+    }
+    lastTap = now;
+
+    if (tapCount >= 5) {
+        BOOL near = (hypot(p.x - firstPoint.x, p.y - firstPoint.y) < 220.0);
+        tapCount = 0;
+        if (near) {
+            CLXLog(@"[ui] tap trigger at (%.0f, %.0f)", p.x, p.y);
+            CLXShowPanel();
+        }
+    }
+}
+
 %hook UIApplication
 
 - (void)sendEvent:(UIEvent *)event {
-    %orig;
-
-    if (event.type != UIEventTypeTouches) return;
-
-    for (UITouch *touch in event.allTouches) {
-        if (touch.phase != UITouchPhaseEnded) continue;
-
-        static NSInteger tapCount = 0;
-        static NSTimeInterval lastTap = 0;
-        static CGPoint firstPoint = {0, 0};
-
-        NSTimeInterval now = CFAbsoluteTimeGetCurrent();
-        CGPoint p = [touch locationInView:touch.window];
-
-        if (now - lastTap > 1.2) {
-            tapCount = 0;
-            firstPoint = p;
+    if (event.type == UIEventTypeTouches) {
+        for (UITouch *touch in event.allTouches) {
+            if (touch.phase != UITouchPhaseEnded) continue;
+            CLXRegisterTap([touch locationInView:nil]);
+            break;
         }
-        lastTap = now;
-        tapCount++;
-
-        if (tapCount >= 5) {
-            BOOL near = (hypot(p.x - firstPoint.x, p.y - firstPoint.y) < 90.0);
-            tapCount = 0;
-            if (near) CLXShowPanel();
-        }
-        break;
     }
+    %orig;
+}
+
+- (void)motionEnded:(UIEventSubtype)motion withEvent:(UIEvent *)event {
+    if (motion == UIEventSubtypeMotionShake) {
+        CLXLog(@"[ui] shake trigger");
+        CLXShowPanel();
+    }
+    %orig;
 }
 
 %end

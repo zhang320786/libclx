@@ -16,6 +16,7 @@ typedef NS_ENUM(NSInteger, CLXPanelSection) {
 @interface CLXPanelController () <UITableViewDelegate, UITableViewDataSource>
 @property (nonatomic, strong) UITableView *tableView;
 @property (nonatomic, strong) UILabel *statusLabel;
+- (void)showDiagnostics;
 @end
 
 @implementation CLXPanelController
@@ -28,6 +29,12 @@ typedef NS_ENUM(NSInteger, CLXPanelSection) {
                                                                           target:self
                                                                           action:@selector(close)];
     self.navigationItem.rightBarButtonItem = done;
+    // 诊断入口放左上角，不用滚到底去找
+    self.navigationItem.leftBarButtonItem =
+        [[UIBarButtonItem alloc] initWithTitle:@"诊断"
+                                         style:UIBarButtonItemStylePlain
+                                        target:self
+                                        action:@selector(showDiagnostics)];
 
     self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
     self.tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -97,11 +104,11 @@ typedef NS_ENUM(NSInteger, CLXPanelSection) {
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     switch (section) {
-        case CLXPanelSectionMaster: return 1;
+        case CLXPanelSectionMaster: return 2;
         case CLXPanelSectionPlace:  return 2;
         case CLXPanelSectionMotion: return 3;
         case CLXPanelSectionCompat: return 4;
-        case CLXPanelSectionDebug:  return 3;
+        case CLXPanelSectionDebug:  return 2;
         default: return 0;
     }
 }
@@ -120,7 +127,7 @@ typedef NS_ENUM(NSInteger, CLXPanelSection) {
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     switch (section) {
         case CLXPanelSectionMaster:
-            return @"开启后，本进程内所有定位结果都会被替换为目标点。";
+            return @"开启后，本进程内所有定位结果都会被替换为目标点。\\n诊断日志写入 App 沙箱 Library/Caches/.dbg，日志量大时自动截断。";
         case CLXPanelSectionMotion:
             return @"步行/驾车模式会从上一次真实位置匀速移动过去，避免出现超大瞬时速度记录。\n步行仅对 3km 内生效、驾车 60km 内生效；超出范围自动切换。";
         case CLXPanelSectionCompat:
@@ -162,7 +169,10 @@ typedef NS_ENUM(NSInteger, CLXPanelSection) {
     NSInteger r = indexPath.row;
 
     if (s == CLXPanelSectionMaster) {
-        return [self switchCellWithTitle:@"启用虚拟定位" on:[CLXStore enabled] action:@selector(toggleEnabled:)];
+        if (r == 0) {
+            return [self switchCellWithTitle:@"启用虚拟定位" on:[CLXStore enabled] action:@selector(toggleEnabled:)];
+        }
+        return [self switchCellWithTitle:@"诊断日志" on:[CLXStore diagnosticsEnabled] action:@selector(toggleDiag:)];
     }
 
     if (s == CLXPanelSectionPlace) {
@@ -208,8 +218,7 @@ typedef NS_ENUM(NSInteger, CLXPanelSection) {
     }
 
     // Debug
-    if (r == 0) return [self switchCellWithTitle:@"诊断日志" on:[CLXStore diagnosticsEnabled] action:@selector(toggleDiag:)];
-    if (r == 1) {
+    if (r == 0) {
         UITableViewCell *cell = [self cellWithTitle:@"查看诊断信息" detail:@""];
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         return cell;
@@ -296,8 +305,8 @@ typedef NS_ENUM(NSInteger, CLXPanelSection) {
     }
 
     if (s == CLXPanelSectionDebug) {
-        if (r == 1) [self showDiagnostics];
-        if (r == 2) [self confirmReset];
+        if (r == 0) [self showDiagnostics];
+        if (r == 1) [self confirmReset];
     }
 }
 

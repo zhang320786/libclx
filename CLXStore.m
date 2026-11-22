@@ -214,7 +214,9 @@ static BOOL GetBool(NSString *key, BOOL def) {
 }
 
 + (BOOL)diagnosticsEnabled {
-    return GetBool(kKDiag, NO);
+    // 默认开启：日志文件本身有 256KB 上限，开销可忽略，
+    // 而且它同时是"插件是否成功注入"最直接的证据（沙箱内会出现 .dbg）。
+    return GetBool(kKDiag, YES);
 }
 
 + (void)setDiagnosticsEnabled:(BOOL)v {
