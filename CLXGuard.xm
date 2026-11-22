@@ -431,12 +431,11 @@ static BOOL CLXMethodLooksLikeCheck(const char *name) {
 
 static BOOL CLXReturnTypeIsScalar(Method m) {
     const char *t = method_getTypeEncoding(m);
-    if (!t || t[0] != 'B' && t[0] != 'c' && t[0] != 'i' && t[0] != 'I' &&
-        t[0] != 's' && t[0] != 'S' && t[0] != 'l' && t[0] != 'L' &&
-        t[0] != 'q' && t[0] != 'Q') {
-        return NO;
-    }
-    return YES;
+    if (!t) return NO;
+    const char c = t[0];
+    return (c == 'B' || c == 'c' || c == 'i' || c == 'I' ||
+            c == 's' || c == 'S' || c == 'l' || c == 'L' ||
+            c == 'q' || c == 'Q');
 }
 
 void CLXGuardHookChecks(void) {
