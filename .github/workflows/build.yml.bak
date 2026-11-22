@@ -1,0 +1,64 @@
+name: build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Install deps
+        run: brew install ldid xz
+
+      - name: Cache Theos
+        uses: actions/cache@v4
+        with:
+          path: ~/theos
+          key: theos-roothide-v1
+
+      - name: Install roothide/theos
+        run: |
+          export THEOS="$HOME/theos"
+          if [ ! -d "$THEOS" ] || [ -z "$(ls -A "$THEOS" 2>/dev/null)" ]; then
+            bash -c "$(curl -fsSL https://raw.githubusercontent.com/roothide/theos/master/bin/install-theos)"
+          fi
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          ls "$THEOS/vendor/mod" | grep -x roothide
+          "$THEOS/bin/install-sdk" latest || true
+          ls "$THEOS/sdks"
+
+      - name: Build
+        run: |
+          make clean || true
+          make package FINALPACKAGE=1
+
+      - name: Verify package
+        run: |
+          set -e
+          ls -l packages/
+          deb=$(ls packages/*.deb | head -n1)
+          dpkg-deb -f "$deb" Package Version Architecture Depends
+          dpkg-deb -c "$deb" | head -20
+
+          if dpkg-deb -c "$deb" | grep -q '\./var/jb/'; then
+            echo "ERROR: roothide package must not contain /var/jb prefix"
+            exit 1
+          fi
+          dpkg-deb -c "$deb" | grep -q 'MobileSubstrate/DynamicLibraries'
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: libclx-deb
+          path: packages/*.deb
+          if-no-files-found: error
